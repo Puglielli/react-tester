@@ -1,5 +1,6 @@
 import { createTheme } from '@mui/material/styles';
 import { COLORS } from 'constants/index';
+import React from 'react';
 
 declare module '@mui/material/styles' {
   interface Palette {
@@ -60,7 +61,7 @@ const baseTheme = createTheme({
   },
   palette: {
     primary: {
-      main: '#0d1a26'
+      main: '#ec7000'
     },
     background: {
       default: '#ecedf2'

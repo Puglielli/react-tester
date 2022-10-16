@@ -1,5 +1,5 @@
 import CloseTwoToneIcon from '@mui/icons-material/CloseTwoTone';
-import HomeIcon from '@mui/icons-material/Home';
+import DataObject from '@mui/icons-material/DataObject';
 import MenuIcon from '@mui/icons-material/Menu';
 import {
   IconButton,
@@ -26,10 +26,11 @@ import {
   ListItemIcon,
   MobileWrapper
 } from './ResponsiveAppBar.styles';
+import { SpeedOutlined } from '@mui/icons-material';
 
 const pages = [
-  { name: 'Home', icon: HomeIcon, page: '/' },
-  { name: 'Tester', icon: HomeIcon, page: '/tester' }
+  { name: 'Endpoints', icon: DataObject, page: '/' },
+  { name: 'Load Test', icon: SpeedOutlined, page: '/tester' }
 ];
 
 export function ResponsiveAppBar() {
