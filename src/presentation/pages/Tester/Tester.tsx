@@ -1,9 +1,9 @@
-import { MasterTemplate } from 'presentation/components';
+import MainTemplate from '../../components/templates/MainTemplate/MainTemplate';
 
 export function Tester() {
   return (
-    <MasterTemplate>
+    <MainTemplate>
       <div>Tester</div>
-    </MasterTemplate>
+    </MainTemplate>
   );
 }
