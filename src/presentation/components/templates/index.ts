@@ -1,0 +1,1 @@
+export * from './MasterTemplate/MasterTemplate';
