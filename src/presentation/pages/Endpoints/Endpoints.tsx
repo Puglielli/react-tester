@@ -1,4 +1,5 @@
 import {
+  Alert,
   Button,
   Container,
   FormControl,
@@ -9,39 +10,90 @@ import {
   Paper,
   Select,
   SelectChangeEvent,
+  Snackbar,
   TextField
 } from '@mui/material';
 import CodeEditor from '@uiw/react-textarea-code-editor';
-import { ChangeEvent, useState } from 'react';
+import { ChangeEvent, SyntheticEvent, useState } from 'react';
 import MainTemplate from '../../components/templates/MainTemplate/MainTemplate';
-import axios from 'axios';
+import SendIcon from '@mui/icons-material/Send';
+import {
+  getSchemasByName,
+  getSchemasByTopic
+} from '../../../controllers/SchemaController';
+import { SnackBarProps } from '../../components/snackbar/SnackBar';
 
-export function Home() {
-  const [schemaCode, setSchemaCode] = useState(`{}`);
-  const [dataCode, setDataCode] = useState(`{}`);
+export function Endpoints() {
+  const [schemaCode, setSchemaCode] = useState('{}');
+  const [dataCode, setDataCode] = useState('{}');
   const [topic, setTopic] = useState('');
   const [schema, setSchema] = useState('');
+  const [schemas, setSchemas] = useState([]);
   const [cluster, setCluster] = useState('');
   const [environment, setEnvironment] = useState('');
+  const [snackBarProps, setSnackBarProps] = useState<SnackBarProps>({
+    message: 'Successful event!',
+    severity: 'success'
+  });
+
+  const [open, setOpen] = useState(false);
+  const handleClose = (event?: SyntheticEvent | Event, reason?: string) =>
+    reason !== 'clickaway' ? setOpen(false) : undefined;
 
   const textChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const target = event.target;
+    const { name, value } = event.target;
 
-    if (target.name === 'topic') {
-      setTopic(target.value);
-    }
+    if (name === 'topic') setTopic(value);
   };
 
   const selectChange = (event: SelectChangeEvent) => {
-    const target = event.target;
+    const { name, value } = event.target;
 
-    if (target.name === 'schema') {
-      setSchema(target.value);
-    } else if (target.name === 'cluster') {
-      setCluster(target.value);
-    } else if (target.name === 'environment') {
-      setEnvironment(target.value);
-    }
+    if (name === 'schema') {
+      setSchema(value);
+      getSchemasByName(value)
+        .then((response) => {
+          const { schema, payload } = response.data;
+
+          setSchemaCode(schema);
+          setDataCode(payload);
+          setSnackBarProps({
+            message: 'Schemas found successfully!',
+            severity: 'success'
+          });
+        })
+        .catch((err) => {
+          setSnackBarProps({ message: 'Error found!', severity: 'error' });
+          console.error(err.error);
+        });
+    } else if (name === 'cluster') setCluster(value);
+    else if (name === 'environment') setEnvironment(value);
+  };
+
+  const getSchemas = () => {
+    getSchemasByTopic(topic)
+      .then((response) => {
+        const { schemas } = response.data;
+
+        if (schemas.length > 0) {
+          setSnackBarProps({
+            message: 'Schemas found successfully!',
+            severity: 'success'
+          });
+        } else {
+          setSnackBarProps({
+            message: 'Not found schemas!',
+            severity: 'warning'
+          });
+        }
+
+        setSchemas(schemas);
+      })
+      .catch((err) => {
+        setSnackBarProps({ message: 'Error found!', severity: 'error' });
+        console.error(err);
+      })
+      .finally(() => setOpen(true));
   };
 
   return (
@@ -60,46 +112,13 @@ export function Home() {
               }}
             >
               <div>
-                {/* Topic */}
-                <FormControl sx={{ m: 1, minWidth: 400 }}>
-                  <TextField
-                    required
-                    error={false}
-                    value={topic}
-                    name={'topic'}
-                    id="topic-text"
-                    label="Topic"
-                    variant="outlined"
-                    onChange={textChange}
-                  />
-                </FormControl>
-                {/* Schema */}
-                <FormControl sx={{ m: 1, minWidth: 600 }}>
-                  <InputLabel id="schema-label">Schema</InputLabel>
-                  <Select
-                    name={'schema'}
-                    labelId="schema-label"
-                    id="schema-select"
-                    value={schema}
-                    label="schema"
-                    onChange={selectChange}
-                  >
-                    <MenuItem value="">
-                      <em></em>
-                    </MenuItem>
-                    <MenuItem value={'solicitar-debito'}>
-                      solicitarDebito
-                    </MenuItem>
-                    <MenuItem value={'solicitar-credito'}>
-                      solicitarCredito
-                    </MenuItem>
-                  </Select>
-                  <FormHelperText>select the desired event.</FormHelperText>
-                </FormControl>
                 {/* Cluster */}
                 <FormControl sx={{ m: 1, minWidth: 200 }}>
-                  <InputLabel id="cluster-label">Cluster</InputLabel>
+                  <InputLabel required id="cluster-label">
+                    Cluster
+                  </InputLabel>
                   <Select
+                    error={cluster === ''}
                     name={'cluster'}
                     labelId="cluster-label"
                     id="cluster-select"
@@ -107,9 +126,6 @@ export function Home() {
                     label="cluster"
                     onChange={selectChange}
                   >
-                    <MenuItem value="">
-                      <em></em>
-                    </MenuItem>
                     <MenuItem value={'events-publico'}>Events Publico</MenuItem>
                     <MenuItem value={'autorizadorcontas'}>
                       Autorizador Contas
@@ -119,8 +135,11 @@ export function Home() {
                 </FormControl>
                 {/* Environment */}
                 <FormControl sx={{ m: 1, minWidth: 100 }}>
-                  <InputLabel id="environment-label">Environment</InputLabel>
+                  <InputLabel required id="environment-label">
+                    Environment
+                  </InputLabel>
                   <Select
+                    error={environment === ''}
                     name={'environment'}
                     labelId="environment-label"
                     id="environment-select"
@@ -128,9 +147,6 @@ export function Home() {
                     label="environment"
                     onChange={selectChange}
                   >
-                    <MenuItem value="">
-                      <em></em>
-                    </MenuItem>
                     <MenuItem value={'development'}>Development</MenuItem>
                     <MenuItem value={'homologation'}>Homologation</MenuItem>
                     <MenuItem value={'production'}>Production (Shit!)</MenuItem>
@@ -138,6 +154,67 @@ export function Home() {
                   <FormHelperText>
                     select the desired environment.
                   </FormHelperText>
+                </FormControl>
+                {/* Topic */}
+                <FormControl sx={{ m: 1, minWidth: 400 }}>
+                  <TextField
+                    required
+                    error={topic === ''}
+                    value={topic}
+                    name={'topic'}
+                    id="topic-text"
+                    label="Topic"
+                    variant="outlined"
+                    onChange={textChange}
+                  />
+                  <FormHelperText>enter the topic name.</FormHelperText>
+                </FormControl>
+
+                <FormControl sx={{ m: 1, minWidth: 50, top: '10px' }}>
+                  <Button
+                    variant="contained"
+                    endIcon={<SendIcon />}
+                    onClick={getSchemas}
+                  >
+                    Get Schemas
+                  </Button>
+                  <Snackbar
+                    open={open}
+                    autoHideDuration={6000}
+                    onClose={handleClose}
+                  >
+                    <Alert
+                      onClose={handleClose}
+                      severity={snackBarProps.severity}
+                      sx={{ width: '100%' }}
+                    >
+                      {snackBarProps.message}
+                    </Alert>
+                  </Snackbar>
+                </FormControl>
+                {/* Schema */}
+                <FormControl
+                  sx={{ m: 1, minWidth: 600 }}
+                  disabled={schemas.length == 0}
+                >
+                  <InputLabel id="schema-label">Schema</InputLabel>
+                  <Select
+                    name={'schema'}
+                    labelId="schema-label"
+                    id="schema-select"
+                    value={schema}
+                    label="schema"
+                    onChange={selectChange}
+                  >
+                    {schemas.map((name) => {
+                      return (
+                        <MenuItem key={name} value={name}>
+                          {name}
+                        </MenuItem>
+                      );
+                    })}
+                  </Select>
+                  <FormHelperText>select the desired event.</FormHelperText>
                 </FormControl>
               </div>
             </Paper>
