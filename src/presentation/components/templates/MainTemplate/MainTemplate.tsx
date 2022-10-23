@@ -1,5 +1,6 @@
 import * as React from 'react';
-import { styled, createTheme, ThemeProvider } from '@mui/material/styles';
+import { PropsWithChildren } from 'react';
+import { createTheme, styled, ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import MuiDrawer from '@mui/material/Drawer';
 import Box from '@mui/material/Box';
@@ -9,14 +10,11 @@ import List from '@mui/material/List';
 import Typography from '@mui/material/Typography';
 import Divider from '@mui/material/Divider';
 import IconButton from '@mui/material/IconButton';
-import Badge from '@mui/material/Badge';
 import Container from '@mui/material/Container';
 import Link from '@mui/material/Link';
 import MenuIcon from '@mui/icons-material/Menu';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
-import NotificationsIcon from '@mui/icons-material/Notifications';
 import { listItems } from './MenuItems';
-import { PropsWithChildren } from 'react';
 
 const headerName = 'Tester';
 const drawerWidth = 240;
@@ -125,11 +123,11 @@ export default function MainTemplate({ children }: PropsWithChildren) {
             >
               {headerName}
             </Typography>
-            <IconButton color="inherit">
-              <Badge badgeContent={4} color="secondary">
-                <NotificationsIcon />
-              </Badge>
-            </IconButton>
+            {/*<IconButton color="inherit">*/}
+            {/*  <Badge badgeContent={4} color="secondary">*/}
+            {/*    <NotificationsIcon />*/}
+            {/*  </Badge>*/}
+            {/*</IconButton>*/}
           </Toolbar>
         </AppBar>
         <Drawer variant="permanent" open={open}>
@@ -141,15 +139,27 @@ export default function MainTemplate({ children }: PropsWithChildren) {
               px: [1]
             }}
           >
+            <Typography
+              variant="h6"
+              noWrap
+              component="div"
+              sx={{
+                flexGrow: 1,
+                display: { xs: 'none', sm: 'block' },
+                marginLeft: '80px'
+              }}
+            >
+              Menu
+            </Typography>
             <IconButton onClick={toggleDrawer}>
               <ChevronLeftIcon />
             </IconButton>
           </Toolbar>
           <Divider />
           <List component="nav">
-            {listItems}
-            {/*<Divider sx={{ my: 1 }} />*/}
-            {/*{secondaryListItems}*/}
+            {listItems(false)}
+            <Divider sx={{ my: 1 }} />
+            {listItems(true)}
           </List>
         </Drawer>
         <Box

@@ -1,2 +1,2 @@
-export * from './Endpoints/Endpoints';
-export * from './Tester/Tester';
+export * from './endpoints/Endpoints';
+export * from './loadTest/LoadTest';

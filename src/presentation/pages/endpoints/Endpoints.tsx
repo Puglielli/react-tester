@@ -1,4 +1,7 @@
 import {
+  Accordion,
+  AccordionDetails,
+  AccordionSummary,
   Alert,
   Button,
   Container,
@@ -10,161 +13,182 @@ import {
   Paper,
   Select,
   SelectChangeEvent,
-  Snackbar,
-  TextField
+  Snackbar
 } from '@mui/material';
 import CodeEditor from '@uiw/react-textarea-code-editor';
-import { ChangeEvent, SyntheticEvent, useState } from 'react';
+import { SyntheticEvent, useEffect, useState } from 'react';
 import MainTemplate from '../../components/templates/MainTemplate/MainTemplate';
-import SendIcon from '@mui/icons-material/Send';
 import {
-  getSchemasByName,
-  getSchemasByTopic
-} from '../../../controllers/SchemaController';
-import { SnackBarProps } from '../../components/snackbar/SnackBar';
-import { Accordion, AccordionDetails, AccordionSummary } from '@mui/material';
+  getClusters,
+  getSchemaAvro,
+  getSchemaNames,
+  getTopicNames,
+  getVersions,
+  sendEvent
+} from '../../../controllers/KafkaController';
+import {
+  defaultError,
+  initialize,
+  SnackBarProps
+} from '../../components/snackbar/SnackBar';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import Typography from '@mui/material/Typography';
-import {
-  expandedPanel,
-  ExpandedProps
-} from '../../components/Expanded/ExpandedUtils';
-import { post } from '../../../config/Client';
+import { Panel, setPanelExpand } from '../../components/panel/Panel';
+import { TopicDTO } from '../../../controllers/dto/TopicDTO';
+import { ClusterDTO } from '../../../controllers/dto/ClusterDTO';
+import { SchemaDTO } from '../../../controllers/dto/SchemaDTO';
+import { VersionDTO } from '../../../controllers/dto/VersionDTO';
 
-export function Tester() {
+const pageName = 'Endpoints';
+
+const initialPanels = [
+  {
+    id: 'schema-panel',
+    enabled: false
+  },
+  {
+    id: 'request-panel',
+    enabled: false
+  },
+  {
+    id: 'header-panel',
+    enabled: false
+  },
+  {
+    id: 'response-panel',
+    enabled: false
+  }
+];
+
+export function Endpoints() {
   const [schemaCode, setSchemaCode] = useState('{}');
   const [dataCode, setDataCode] = useState('{}');
   const [headerCode, setHeaderCode] = useState('{}');
-  const [responseCode, setResponseCode] = useState(' ');
+  const [responseCode, setResponseCode] = useState('');
   const [topic, setTopic] = useState('');
+  const [topics, setTopics] = useState<Array<TopicDTO>>([]);
   const [schema, setSchema] = useState('');
-  const [schemas, setSchemas] = useState([]);
+  const [schemas, setSchemas] = useState<Array<SchemaDTO>>([]);
+  const [version, setVersion] = useState('');
+  const [versions, setVersions] = useState<Array<VersionDTO>>([]);
   const [cluster, setCluster] = useState('');
-  const [environment, setEnvironment] = useState('');
-  const [snackBarProps, setSnackBarProps] = useState<SnackBarProps>({
-    message: 'Successful event!',
-    severity: 'success'
-  });
+  const [clusters, setClusters] = useState<Array<ClusterDTO>>([]);
+  const [panels, setPanels] = useState<Array<Panel>>(initialPanels);
+  const [snackBarProps, setSnackBarProps] = useState<SnackBarProps>(initialize);
 
-  const [open, setOpen] = useState(false);
+  const [showSnackBar, setShowSnackBar] = useState(false);
   const handleClose = (event?: SyntheticEvent | Event, reason?: string) =>
-    reason !== 'clickaway' ? setOpen(false) : undefined;
+    reason !== 'clickaway' ? setShowSnackBar(false) : undefined;
 
-  const textChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = event.target;
-
-    if (name === 'topic') setTopic(value);
+  const callSnackBar = (
+    snackBarProps: SnackBarProps,
+    throwable?: any | undefined
+  ): void => {
+    setSnackBarProps(snackBarProps);
+    setShowSnackBar(true);
+    throwable ? console.error(throwable.error) : undefined;
   };
+
+  useEffect(() => {
+    getClusters()
+      .then((clusters) => setClusters(clusters))
+      .catch((throwable) => callSnackBar(defaultError, throwable));
+  }, []);
 
   const selectChange = (event: SelectChangeEvent) => {
-    const { name, value } = event.target;
+    const { name: eventName, value } = event.target;
 
-    if (name === 'schema') {
+    if (eventName === 'cluster') {
+      setCluster(value);
+      getAllTopics(value);
+    } else if (eventName === 'topic') {
+      setTopic(value);
+      getAllSchemas(value);
+    } else if (eventName === 'schema') {
       setSchema(value);
-      getSchemasByName(value)
-        .then((response) => {
-          const { schema, payload } = response.data;
-
-          setSchemaCode(schema);
-          setDataCode(payload);
-          setSnackBarProps({
-            message: 'Schemas found successfully!',
-            severity: 'success'
-          });
-          setExpanded(expandedPanel(expanded, 'schema-panel', true));
-        })
-        .catch((err) => {
-          setSnackBarProps({ message: 'Error found!', severity: 'error' });
-          console.error(err.error);
-        });
-    } else if (name === 'cluster') setCluster(value);
-    else if (name === 'environment') setEnvironment(value);
+      getAllVersions(topic, value);
+    } else if (eventName === 'version') {
+      setVersion(value);
+      getAvro(topic, schema, value);
+    }
   };
 
-  const getSchemas = () => {
-    getSchemasByTopic(topic)
-      .then((response) => {
-        const { schemas } = response.data;
+  const getAllTopics = (cluster: string) => {
+    getTopicNames(cluster)
+      .then((topics) => setTopics(topics))
+      .catch((throwable) => callSnackBar(defaultError, throwable));
+  };
 
-        if (schemas.length > 0) {
-          setSnackBarProps({
-            message: 'Schemas found successfully!',
-            severity: 'success'
-          });
-        } else {
-          setSnackBarProps({
+  const getAllSchemas = (topic: string) => {
+    getSchemaNames(topic)
+      .then((schemas) => {
+        if (schemas.length <= 0) {
+          callSnackBar({
             message: 'Not found schemas!',
             severity: 'warning'
           });
         }
-
+        setSchema('');
         setSchemas(schemas);
       })
-      .catch((err) => {
-        setSnackBarProps({ message: 'Error found!', severity: 'error' });
-        console.error(err);
-      })
-      .finally(() => setOpen(true));
+      .catch((throwable) => callSnackBar(defaultError, throwable));
   };
 
-  const [expanded, setExpanded] = useState<Array<ExpandedProps>>([
-    {
-      id: 'schema-panel',
-      enabled: false
-    },
-    {
-      id: 'request-panel',
-      enabled: false
-    },
-    {
-      id: 'header-panel',
-      enabled: false
-    },
-    {
-      id: 'response-panel',
-      enabled: false
-    }
-  ]);
+  const getAllVersions = (topic: string, schema: string) => {
+    getVersions(topic, schema)
+      .then((versions) => setVersions(versions))
+      .catch((throwable) => callSnackBar(defaultError, throwable));
+  };
 
-  const handleChange =
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    (id: string) => (event: SyntheticEvent, isExpanded: boolean) =>
-      setExpanded(expandedPanel(expanded, id));
+  const getAvro = (topic: string, schema: string, version: string) => {
+    getSchemaAvro(topic, schema, version)
+      .then((response) => {
+        const { avro, data } = response;
+
+        console.log(response);
+
+        setSchemaCode(avro ?? '');
+        setDataCode(data ?? '');
+        setPanelExpand(panels, 'schema-panel', true, setPanels);
+      })
+      .catch((throwable) => callSnackBar(defaultError, throwable));
+  };
+
+  const handleChange = (id: string): void =>
+    setPanelExpand(panels, id, undefined, setPanels);
 
   const sendRequest = () => {
     const data = {
       cluster: cluster,
-      environment: environment,
       topic: topic,
       schema: schemaCode,
       payload: dataCode,
       headers: headerCode
     };
 
-    post('/send', data)
-      .then((response) => {
-        const json = JSON.stringify(response.data);
+    console.log(`Data: `, data);
+
+    sendEvent(data)
+      .then((response: any) => {
+        console.log(`response: ${response}`);
+        const json = JSON.stringify(response);
         setResponseCode(json);
         setSnackBarProps({
           message: 'Event produced successfully!',
           severity: 'success'
         });
       })
-      .catch((err) => {
-        setSnackBarProps({ message: 'Error found!', severity: 'error' });
-        setResponseCode(err);
-        console.error(err);
-      })
+      .catch((throwable: any) => callSnackBar(defaultError, throwable))
       .finally(() => {
-        setOpen(true);
-        setExpanded(expandedPanel(expanded, 'response-panel', true));
+        setShowSnackBar(true);
+        setPanelExpand(panels, 'response-panel', true, setPanels);
       });
   };
 
   return (
     <MainTemplate>
-      <h1>Tester</h1>
-      <Container sx={{ mt: 4, mb: 4 }} style={{ width: '1200px' }}>
+      <h1>{pageName}</h1>
+      <Container sx={{ mt: 4, mb: 4 }} maxWidth={false}>
         <Grid container spacing={3}>
           {/* Select Properties */}
           <Grid item xs={3} md={6} lg={12}>
@@ -177,13 +201,12 @@ export function Tester() {
               }}
             >
               <div>
-                {/* Cluster */}
+                {/* Clusters */}
                 <FormControl sx={{ m: 1, minWidth: 200 }}>
                   <InputLabel required id="cluster-label">
                     Cluster
                   </InputLabel>
                   <Select
-                    error={cluster === ''}
                     name={'cluster'}
                     labelId="cluster-label"
                     id="cluster-select"
@@ -191,76 +214,48 @@ export function Tester() {
                     label="cluster"
                     onChange={selectChange}
                   >
-                    <MenuItem value={'events-publico'}>Events Publico</MenuItem>
-                    <MenuItem value={'autorizadorcontas'}>
-                      Autorizador Contas
-                    </MenuItem>
+                    {clusters.map(({ id, name }) => {
+                      return (
+                        <MenuItem key={id} value={id}>
+                          {name}
+                        </MenuItem>
+                      );
+                    })}
                   </Select>
                   <FormHelperText>select the desired cluster.</FormHelperText>
                 </FormControl>
-                {/* Environment */}
-                <FormControl sx={{ m: 1, minWidth: 100 }}>
-                  <InputLabel required id="environment-label">
-                    Environment
+
+                {/* Topics */}
+                <FormControl
+                  sx={{ m: 1, minWidth: { xs: 100, sm: 500 } }}
+                  disabled={cluster === ''}
+                >
+                  <InputLabel required id="topic-label">
+                    Topic
                   </InputLabel>
                   <Select
-                    error={environment === ''}
-                    name={'environment'}
-                    labelId="environment-label"
-                    id="environment-select"
-                    value={environment}
-                    label="environment"
+                    name={'topic'}
+                    labelId="topic-label"
+                    id="topic-select"
+                    value={topic}
+                    label="topic"
                     onChange={selectChange}
                   >
-                    <MenuItem value={'development'}>Development</MenuItem>
-                    <MenuItem value={'homologation'}>Homologation</MenuItem>
-                    <MenuItem value={'production'}>Production (Shit!)</MenuItem>
+                    {topics.map(({ name }) => {
+                      return (
+                        <MenuItem key={name} value={name}>
+                          {name}
+                        </MenuItem>
+                      );
+                    })}
                   </Select>
-                  <FormHelperText>
-                    select the desired environment.
-                  </FormHelperText>
-                </FormControl>
-                {/* Topic */}
-                <FormControl sx={{ m: 1, minWidth: 400 }}>
-                  <TextField
-                    required
-                    error={topic === ''}
-                    value={topic}
-                    name={'topic'}
-                    id="topic-text"
-                    label="Topic"
-                    variant="outlined"
-                    onChange={textChange}
-                  />
-                  <FormHelperText>enter the topic name.</FormHelperText>
+                  <FormHelperText>select the topic name.</FormHelperText>
                 </FormControl>
 
-                <FormControl sx={{ m: 1, minWidth: 50, top: '10px' }}>
-                  <Button
-                    variant="contained"
-                    endIcon={<SendIcon />}
-                    onClick={getSchemas}
-                  >
-                    Get Schemas
-                  </Button>
-                  <Snackbar
-                    open={open}
-                    autoHideDuration={6000}
-                    onClose={handleClose}
-                  >
-                    <Alert
-                      onClose={handleClose}
-                      severity={snackBarProps.severity}
-                      sx={{ width: '100%' }}
-                    >
-                      {snackBarProps.message}
-                    </Alert>
-                  </Snackbar>
-                </FormControl>
-                {/* Schema */}
+                {/* Schemas */}
                 <FormControl
-                  sx={{ m: 1, minWidth: 600 }}
-                  disabled={schemas.length == 0}
+                  sx={{ m: 1, minWidth: { xs: 50, sm: 600 } }}
+                  disabled={schemas?.length <= 0}
                 >
                   <InputLabel id="schema-label">Schema</InputLabel>
                   <Select
@@ -271,7 +266,7 @@ export function Tester() {
                     label="schema"
                     onChange={selectChange}
                   >
-                    {schemas.map((name) => {
+                    {schemas.map(({ name }) => {
                       return (
                         <MenuItem key={name} value={name}>
                           {name}
@@ -281,17 +276,43 @@ export function Tester() {
                   </Select>
                   <FormHelperText>select the desired event.</FormHelperText>
                 </FormControl>
+
+                {/* Versions */}
+                <FormControl
+                  sx={{ m: 1, minWidth: { xs: 50, sm: 100 } }}
+                  disabled={schemas?.length <= 0}
+                >
+                  <InputLabel id="version-label">Versions</InputLabel>
+                  <Select
+                    name={'version'}
+                    labelId="version-label"
+                    id="version-select"
+                    value={version}
+                    label="version"
+                    onChange={selectChange}
+                  >
+                    {versions.map(({ number }) => {
+                      return (
+                        <MenuItem key={number} value={number}>
+                          {number}
+                        </MenuItem>
+                      );
+                    })}
+                  </Select>
+                  <FormHelperText>select the schema version.</FormHelperText>
+                </FormControl>
               </div>
             </Paper>
           </Grid>
-          {/* Requests Panel */}
+
+          {/* Requests panel */}
           <Grid item xs={3} md={6} lg={12}>
-            {/* Schema Panel */}
+            {/* Schema panel */}
             <Accordion
               expanded={
-                expanded.filter((item) => item.id === 'schema-panel')[0].enabled
+                panels.filter((item) => item.id === 'schema-panel')[0].enabled
               }
-              onChange={handleChange('schema-panel')}
+              onChange={() => handleChange('schema-panel')}
             >
               <AccordionSummary
                 expandIcon={<ExpandMoreIcon />}
@@ -316,7 +337,7 @@ export function Tester() {
                 >
                   <CodeEditor
                     value={schemaCode}
-                    language="js"
+                    language="json"
                     placeholder="Please enter Json code."
                     onChange={(evn) => setSchemaCode(evn.target.value)}
                     padding={15}
@@ -332,13 +353,13 @@ export function Tester() {
                 </Paper>
               </AccordionDetails>
             </Accordion>
-            {/* Request Panel */}
+
+            {/* Request panel */}
             <Accordion
               expanded={
-                expanded.filter((item) => item.id === 'request-panel')[0]
-                  .enabled
+                panels.filter((item) => item.id === 'request-panel')[0].enabled
               }
-              onChange={handleChange('request-panel')}
+              onChange={() => handleChange('request-panel')}
             >
               <AccordionSummary
                 expandIcon={<ExpandMoreIcon />}
@@ -363,7 +384,7 @@ export function Tester() {
                 >
                   <CodeEditor
                     value={dataCode}
-                    language="js"
+                    language="json"
                     placeholder="Please enter Json code."
                     onChange={(evn) => setDataCode(evn.target.value)}
                     padding={15}
@@ -379,12 +400,13 @@ export function Tester() {
                 </Paper>
               </AccordionDetails>
             </Accordion>
-            {/* Header Panel */}
+
+            {/* Header panel */}
             <Accordion
               expanded={
-                expanded.filter((item) => item.id === 'header-panel')[0].enabled
+                panels.filter((item) => item.id === 'header-panel')[0].enabled
               }
-              onChange={handleChange('header-panel')}
+              onChange={() => handleChange('header-panel')}
             >
               <AccordionSummary
                 expandIcon={<ExpandMoreIcon />}
@@ -409,7 +431,7 @@ export function Tester() {
                 >
                   <CodeEditor
                     value={headerCode}
-                    language="js"
+                    language="json"
                     placeholder="Please enter Json code."
                     onChange={(evn) => setHeaderCode(evn.target.value)}
                     padding={15}
@@ -425,13 +447,16 @@ export function Tester() {
                 </Paper>
               </AccordionDetails>
             </Accordion>
-            {/* Response Panel */}
+
+            {/* Response panel */}
             <Accordion
               expanded={
-                expanded.filter((item) => item.id === 'response-panel')[0]
-                  .enabled
+                panels.filter((item) => item.id === 'response-panel')[0].enabled
               }
-              onChange={handleChange('response-panel')}
+              style={{
+                display: responseCode !== '' ? 'show' : 'none'
+              }}
+              onChange={() => handleChange('response-panel')}
             >
               <AccordionSummary
                 expandIcon={<ExpandMoreIcon />}
@@ -456,7 +481,7 @@ export function Tester() {
                 >
                   <CodeEditor
                     value={responseCode}
-                    language="js"
+                    language="json"
                     placeholder="Please enter Json code."
                     onChange={(evn) => setResponseCode(evn.target.value)}
                     padding={15}
@@ -473,6 +498,7 @@ export function Tester() {
               </AccordionDetails>
             </Accordion>
           </Grid>
+
           {/* Actions Buttons */}
           <Grid item xs={3}>
             <Paper sx={{ p: 2, display: 'flex', flexDirection: 'column' }}>
@@ -480,6 +506,21 @@ export function Tester() {
             </Paper>
           </Grid>
         </Grid>
+
+        {/* Alerts */}
+        <Snackbar
+          open={showSnackBar}
+          autoHideDuration={6000}
+          onClose={handleClose}
+        >
+          <Alert
+            onClose={handleClose}
+            severity={snackBarProps?.severity}
+            sx={{ width: '100%' }}
+          >
+            {snackBarProps?.message}
+          </Alert>
+        </Snackbar>
       </Container>
     </MainTemplate>
   );

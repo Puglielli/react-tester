@@ -11,8 +11,7 @@ import { Typography } from '../../generics';
 
 const menuItems = [
   { name: 'Endpoints', icon: DataObject, page: '/' },
-  { name: 'Load Test', icon: SpeedOutlined, page: '/tester' },
-  { name: 'Dash', icon: SpeedOutlined, page: '/dash' }
+  { name: 'Load Test', icon: SpeedOutlined, page: '/loadTest' }
 ];
 
 export function Menu() {

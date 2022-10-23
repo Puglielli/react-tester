@@ -1,14 +1,14 @@
-import { Endpoints, Tester } from 'presentation/pages';
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
-import MainTemplate from './presentation/components/templates/MainTemplate/MainTemplate';
+import * as React from 'react';
+import { routesItems } from './presentation/components/templates/MainTemplate/MenuItems';
 
 export function AppRoutes() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<Endpoints />} />
-        <Route path="/tester" element={<Tester />} />
-        <Route path="/dash" element={<MainTemplate />} />
+        {routesItems.map(({ path, element }) => (
+          <Route key={path} path={path} element={element} />
+        ))}
       </Routes>
     </BrowserRouter>
   );

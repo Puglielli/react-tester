@@ -30,7 +30,7 @@ import { SpeedOutlined } from '@mui/icons-material';
 
 const pages = [
   { name: 'Endpoints', icon: DataObject, page: '/' },
-  { name: 'Load Test', icon: SpeedOutlined, page: '/tester' }
+  { name: 'Load Test', icon: SpeedOutlined, page: '/loadTest' }
 ];
 
 export function ResponsiveAppBar() {
