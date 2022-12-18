@@ -41,13 +41,20 @@ export const routesItems: Array<RoutesItem> = [
   }
 ];
 
+export let buttonSelected = { name: '' };
+
 export const listItems = (isConfiguration: boolean) =>
   routesItems
     .filter((item) => item.isConfiguration == isConfiguration)
     .map(({ name, icon: Icon, path }) => (
-      <ListItemButton key={name} to={path} component={RouterLink}>
+      <ListItemButton
+        key={name}
+        to={path}
+        component={RouterLink}
+        onClick={() => (buttonSelected = { name: name })}
+      >
         <ListItemIcon>
-          <Icon />
+          <Icon color={buttonSelected.name == name ? 'primary' : 'none'} />
         </ListItemIcon>
         <Typography textAlign="center">{name}</Typography>
       </ListItemButton>

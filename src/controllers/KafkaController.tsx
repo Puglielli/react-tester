@@ -5,6 +5,7 @@ import { TopicDTO } from './dto/TopicDTO';
 import { SchemaDTO } from './dto/SchemaDTO';
 import { capitalize } from '../common/StringUtils';
 import { VersionDTO } from './dto/VersionDTO';
+import { isJson } from '../common/JsonUtils';
 
 export const getClusters = async (): Promise<Array<ClusterDTO>> => {
   const response = await request('/clusters');
@@ -76,7 +77,7 @@ export const sendEvent = async (data: any): Promise<any> => {
     const requestProps = new RequestProps(data, 'POST');
     const response = await request(`/send`, requestProps);
 
-    return JSON.parse(response);
+    return isJson(response) ? JSON.parse(response) : response;
   } catch (err) {
     throw new ResponseError('Error found!', err);
   }

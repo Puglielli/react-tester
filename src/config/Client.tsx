@@ -34,7 +34,7 @@ export class RequestProps {
   build = () => {
     return {
       method: this.method,
-      body: this.method === 'GET' ? undefined : this.body,
+      body: this.method === 'GET' ? undefined : JSON.stringify(this.body),
       headers: { 'Content-Type': 'application/json', ...this.headers },
       ...this.options
     };
@@ -47,19 +47,12 @@ export const request = async (
 ): Promise<any> => {
   try {
     const response = await fetch(buildUrl(path).href, props.build());
-
-    return response.ok ? await response.json() : await Promise.reject(response);
+    return response.ok
+      ? validateResponse(await response.text())
+      : await Promise.reject(response);
   } catch (err) {
     throw new ResponseError('communication client error', err);
   }
 };
 
-// export const getAsync = (
-//   path: string,
-//   props: RequestProps = new RequestProps()
-// ): any => {
-//   return fetch(buildUrl(path).href, props.build())
-//     .then((res) => (res.ok ? res.json() : Promise.reject(res)))
-//     .then((res) => res)
-//     .catch((err) => console.error(`Client communication error: ${err}`));
-// };
+const validateResponse = (str: any) => (str ? JSON.parse(str) : {});

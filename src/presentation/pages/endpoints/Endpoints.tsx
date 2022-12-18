@@ -6,14 +6,14 @@ import {
   Button,
   Container,
   FormControl,
-  FormHelperText,
   Grid,
   InputLabel,
   MenuItem,
   Paper,
   Select,
   SelectChangeEvent,
-  Snackbar
+  Snackbar,
+  Tooltip
 } from '@mui/material';
 import CodeEditor from '@uiw/react-textarea-code-editor';
 import { SyntheticEvent, useEffect, useState } from 'react';
@@ -38,6 +38,8 @@ import { TopicDTO } from '../../../controllers/dto/TopicDTO';
 import { ClusterDTO } from '../../../controllers/dto/ClusterDTO';
 import { SchemaDTO } from '../../../controllers/dto/SchemaDTO';
 import { VersionDTO } from '../../../controllers/dto/VersionDTO';
+import IconButton from '@mui/material/IconButton';
+import FormatAlignCenterIcon from '@mui/icons-material/FormatAlignCenter';
 
 const pageName = 'Endpoints';
 
@@ -158,31 +160,50 @@ export function Endpoints() {
     setPanelExpand(panels, id, undefined, setPanels);
 
   const sendRequest = () => {
-    const data = {
-      cluster: cluster,
-      topic: topic,
-      schema: schemaCode,
-      payload: dataCode,
-      headers: headerCode
-    };
+    try {
+      const data = {
+        cluster: cluster,
+        topic: topic,
+        schema: JSON.parse(schemaCode),
+        payload: JSON.parse(dataCode),
+        headers: headerCode === '' ? JSON.parse('{}') : JSON.parse(headerCode)
+      };
 
-    console.log(`Data: `, data);
-
-    sendEvent(data)
-      .then((response: any) => {
-        console.log(`response: ${response}`);
-        const json = JSON.stringify(response);
-        setResponseCode(json);
-        setSnackBarProps({
-          message: 'Event produced successfully!',
-          severity: 'success'
+      sendEvent(data)
+        .then((response: any) => {
+          setResponseCode(JSON.stringify(response));
+          setSnackBarProps({
+            message: 'Event produced successfully!',
+            severity: 'success'
+          });
+        })
+        .catch((throwable: any) => callSnackBar(defaultError, throwable))
+        .finally(() => {
+          setShowSnackBar(true);
+          panelJsonFormat('response-panel');
+          setPanelExpand(panels, 'response-panel', true, setPanels);
         });
-      })
-      .catch((throwable: any) => callSnackBar(defaultError, throwable))
-      .finally(() => {
-        setShowSnackBar(true);
-        setPanelExpand(panels, 'response-panel', true, setPanels);
-      });
+    } catch (e) {
+      callSnackBar(defaultError, e);
+      console.error(e);
+    }
+  };
+
+  const formatJson = (str: string) => {
+    try {
+      return JSON.stringify(JSON.parse(str), undefined, 4);
+    } catch (e) {
+      callSnackBar(defaultError, e);
+      console.error(e);
+      return str;
+    }
+  };
+
+  const panelJsonFormat = (panelId: string) => {
+    handleChange(panelId);
+    if (panelId == 'header-panel') setHeaderCode(formatJson(headerCode));
+    else if (panelId == 'response-panel')
+      setResponseCode(formatJson(responseCode));
   };
 
   return (
@@ -191,18 +212,19 @@ export function Endpoints() {
       <Container sx={{ mt: 4, mb: 4 }} maxWidth={false}>
         <Grid container spacing={3}>
           {/* Select Properties */}
-          <Grid item xs={3} md={6} lg={12}>
+          <Grid item xs={12} md={12} lg={12}>
             <Paper
               sx={{
-                p: 2,
-                display: 'flex',
-                flexDirection: 'row',
-                height: 240
+                p: 2
               }}
             >
-              <div>
+              <div
+                style={{
+                  display: 'flex'
+                }}
+              >
                 {/* Clusters */}
-                <FormControl sx={{ m: 1, minWidth: 200 }}>
+                <FormControl sx={{ m: 1, flex: 1 }}>
                   <InputLabel required id="cluster-label">
                     Cluster
                   </InputLabel>
@@ -222,14 +244,10 @@ export function Endpoints() {
                       );
                     })}
                   </Select>
-                  <FormHelperText>select the desired cluster.</FormHelperText>
                 </FormControl>
 
                 {/* Topics */}
-                <FormControl
-                  sx={{ m: 1, minWidth: { xs: 100, sm: 500 } }}
-                  disabled={cluster === ''}
-                >
+                <FormControl sx={{ m: 1, flex: 1 }} disabled={cluster === ''}>
                   <InputLabel required id="topic-label">
                     Topic
                   </InputLabel>
@@ -249,12 +267,13 @@ export function Endpoints() {
                       );
                     })}
                   </Select>
-                  <FormHelperText>select the topic name.</FormHelperText>
                 </FormControl>
+              </div>
 
+              <div style={{ display: 'flex' }}>
                 {/* Schemas */}
                 <FormControl
-                  sx={{ m: 1, minWidth: { xs: 50, sm: 600 } }}
+                  sx={{ m: 1, flex: 1, flexGrow: { xs: 1, sm: 5, md: 10 } }}
                   disabled={schemas?.length <= 0}
                 >
                   <InputLabel id="schema-label">Schema</InputLabel>
@@ -274,12 +293,11 @@ export function Endpoints() {
                       );
                     })}
                   </Select>
-                  <FormHelperText>select the desired event.</FormHelperText>
                 </FormControl>
 
                 {/* Versions */}
                 <FormControl
-                  sx={{ m: 1, minWidth: { xs: 50, sm: 100 } }}
+                  sx={{ m: 1, flex: 1 }}
                   disabled={schemas?.length <= 0}
                 >
                   <InputLabel id="version-label">Versions</InputLabel>
@@ -299,14 +317,13 @@ export function Endpoints() {
                       );
                     })}
                   </Select>
-                  <FormHelperText>select the schema version.</FormHelperText>
                 </FormControl>
               </div>
             </Paper>
           </Grid>
 
           {/* Requests panel */}
-          <Grid item xs={3} md={6} lg={12}>
+          <Grid item xs={12} md={12} lg={12}>
             {/* Schema panel */}
             <Accordion
               expanded={
@@ -319,10 +336,15 @@ export function Endpoints() {
                 aria-controls="schema-panel-content"
                 id="schema-panel-id"
               >
-                <Typography sx={{ width: '33%', flexShrink: 0 }}>
+                <Typography sx={{ minWidth: '33%', flexShrink: 0 }}>
                   Schema Avro
                 </Typography>
-                <Typography sx={{ color: 'text.secondary' }}>
+                <Typography
+                  sx={{
+                    color: 'text.secondary',
+                    display: { xs: 'none', sm: 'none', md: 'block' }
+                  }}
+                >
                   Json from schema avro selected
                 </Typography>
               </AccordionSummary>
@@ -366,10 +388,15 @@ export function Endpoints() {
                 aria-controls="request-panel-content"
                 id="request-panel-id"
               >
-                <Typography sx={{ width: '33%', flexShrink: 0 }}>
+                <Typography sx={{ minWidth: '33%', flexShrink: 0 }}>
                   Request Schema Data
                 </Typography>
-                <Typography sx={{ color: 'text.secondary' }}>
+                <Typography
+                  sx={{
+                    color: 'text.secondary',
+                    display: { xs: 'none', sm: 'none', md: 'block' }
+                  }}
+                >
                   Request Json from producer event
                 </Typography>
               </AccordionSummary>
@@ -413,12 +440,35 @@ export function Endpoints() {
                 aria-controls="header-panel-content"
                 id="header-panel-id"
               >
-                <Typography sx={{ width: '33%', flexShrink: 0 }}>
+                <Typography sx={{ minWidth: '33%', flexShrink: 0 }}>
                   Headers
                 </Typography>
-                <Typography sx={{ color: 'text.secondary' }}>
-                  header attributes for request
+                <Typography
+                  sx={{
+                    color: 'text.secondary',
+                    display: { xs: 'none', sm: 'none', md: 'block' }
+                  }}
+                >
+                  Header attributes for request
                 </Typography>
+                <Tooltip title="Format Json" placement="top">
+                  <IconButton
+                    color="primary"
+                    size="small"
+                    sx={{
+                      position: 'absolute',
+                      right: 50,
+                      display: panels.filter(
+                        (item) => item.id === 'header-panel'
+                      )[0].enabled
+                        ? 'block'
+                        : 'none'
+                    }}
+                    onClick={() => panelJsonFormat('header-panel')}
+                  >
+                    <FormatAlignCenterIcon />
+                  </IconButton>
+                </Tooltip>
               </AccordionSummary>
               <AccordionDetails>
                 <Paper
@@ -454,7 +504,7 @@ export function Endpoints() {
                 panels.filter((item) => item.id === 'response-panel')[0].enabled
               }
               style={{
-                display: responseCode !== '' ? 'show' : 'none'
+                display: responseCode !== '' ? '' : 'none'
               }}
               onChange={() => handleChange('response-panel')}
             >
@@ -463,11 +513,16 @@ export function Endpoints() {
                 aria-controls="response-panel-content"
                 id="response-panel-id"
               >
-                <Typography sx={{ width: '33%', flexShrink: 0 }}>
+                <Typography sx={{ minWidth: '33%', flexShrink: 0 }}>
                   Response
                 </Typography>
-                <Typography sx={{ color: 'text.secondary' }}>
-                  request return
+                <Typography
+                  sx={{
+                    color: 'text.secondary',
+                    display: { xs: 'none', sm: 'none', md: 'block' }
+                  }}
+                >
+                  Response return
                 </Typography>
               </AccordionSummary>
               <AccordionDetails>
@@ -500,7 +555,7 @@ export function Endpoints() {
           </Grid>
 
           {/* Actions Buttons */}
-          <Grid item xs={3}>
+          <Grid item xs={12}>
             <Paper sx={{ p: 2, display: 'flex', flexDirection: 'column' }}>
               <Button onClick={sendRequest}>Send Request</Button>
             </Paper>

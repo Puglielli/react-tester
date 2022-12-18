@@ -24,7 +24,10 @@ function Copyright(props: any) {
     <Typography
       variant="body2"
       color="text.secondary"
-      align="center"
+      position="fixed"
+      bottom="0"
+      left="50%"
+      transform="translate(-50%, 0)"
       {...props}
     >
       {'Copyright © '}
@@ -87,7 +90,7 @@ const Drawer = styled(MuiDrawer, {
 const mdTheme = createTheme();
 
 export default function MainTemplate({ children }: PropsWithChildren) {
-  const [open, setOpen] = React.useState(true);
+  const [open, setOpen] = React.useState(false);
   const toggleDrawer = () => {
     setOpen(!open);
   };
@@ -175,7 +178,7 @@ export default function MainTemplate({ children }: PropsWithChildren) {
           }}
         >
           <Toolbar />
-          <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+          <Container maxWidth={false} sx={{ mt: 4, mb: 4 }}>
             {children}
             <Copyright sx={{ pt: 4 }} />
           </Container>
