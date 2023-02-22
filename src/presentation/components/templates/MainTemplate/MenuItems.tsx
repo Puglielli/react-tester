@@ -7,7 +7,8 @@ import { Link as RouterLink } from 'react-router-dom';
 import { Typography } from '../../generics';
 import { Endpoints, LoadTest } from '../../../pages';
 import { Cluster } from '../../../pages/registrations/cluster/Cluster';
-import { ReactElement } from 'react';
+import React, { ReactElement } from 'react';
+import { Tooltip } from '@mui/material';
 
 interface RoutesItem {
   name: string;
@@ -41,21 +42,19 @@ export const routesItems: Array<RoutesItem> = [
   }
 ];
 
-export let buttonSelected = { name: '' };
-
-export const listItems = (isConfiguration: boolean) =>
-  routesItems
+export const listItems = (isConfiguration: boolean) => {
+  return routesItems
     .filter((item) => item.isConfiguration == isConfiguration)
     .map(({ name, icon: Icon, path }) => (
-      <ListItemButton
-        key={name}
-        to={path}
-        component={RouterLink}
-        onClick={() => (buttonSelected = { name: name })}
-      >
-        <ListItemIcon>
-          <Icon color={buttonSelected.name == name ? 'primary' : 'none'} />
-        </ListItemIcon>
+      <ListItemButton key={name} to={path} component={RouterLink}>
+        <Tooltip title={name} placement="right">
+          <ListItemIcon>
+            <Icon
+              color={window.location.pathname == path ? 'primary' : 'none'}
+            />
+          </ListItemIcon>
+        </Tooltip>
         <Typography textAlign="center">{name}</Typography>
       </ListItemButton>
     ));
+};

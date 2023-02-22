@@ -3,7 +3,6 @@ import {
   AccordionDetails,
   AccordionSummary,
   Alert,
-  Button,
   Container,
   FormControl,
   Grid,
@@ -21,8 +20,7 @@ import MainTemplate from '../../components/templates/MainTemplate/MainTemplate';
 import {
   getClusters,
   getSchemaAvro,
-  getSchemaNames,
-  getTopicNames,
+  getTopicAndSchemas,
   getVersions,
   sendEvent
 } from '../../../controllers/KafkaController';
@@ -34,12 +32,13 @@ import {
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import Typography from '@mui/material/Typography';
 import { Panel, setPanelExpand } from '../../components/panel/Panel';
-import { TopicDTO } from '../../../controllers/dto/TopicDTO';
 import { ClusterDTO } from '../../../controllers/dto/ClusterDTO';
-import { SchemaDTO } from '../../../controllers/dto/SchemaDTO';
-import { VersionDTO } from '../../../controllers/dto/VersionDTO';
 import IconButton from '@mui/material/IconButton';
 import FormatAlignCenterIcon from '@mui/icons-material/FormatAlignCenter';
+import Autocomplete from '@mui/material/Autocomplete';
+import TextField from '@mui/material/TextField';
+import { ResponseDTO } from '../../../controllers/dto/ResponseDTO';
+import LoadingButton from '@mui/lab/LoadingButton';
 
 const pageName = 'Endpoints';
 
@@ -67,16 +66,20 @@ export function Endpoints() {
   const [dataCode, setDataCode] = useState('{}');
   const [headerCode, setHeaderCode] = useState('{}');
   const [responseCode, setResponseCode] = useState('');
+  const [inputTopic, setInputTopic] = useState('');
   const [topic, setTopic] = useState('');
-  const [topics, setTopics] = useState<Array<TopicDTO>>([]);
+  const [topics, setTopics] = useState<any>([]);
   const [schema, setSchema] = useState('');
-  const [schemas, setSchemas] = useState<Array<SchemaDTO>>([]);
+  const [schemas, setSchemas] = useState([]);
+  const [topicsAndSchemas, setTopicsAndSchemas] = useState<any | null>(null);
   const [version, setVersion] = useState('');
-  const [versions, setVersions] = useState<Array<VersionDTO>>([]);
-  const [cluster, setCluster] = useState('');
+  const [versions, setVersions] = useState<Array<number>>([]);
+  const [inputCluster, setInputCluster] = useState('');
+  const [cluster, setCluster] = useState<ClusterDTO | null>(null);
   const [clusters, setClusters] = useState<Array<ClusterDTO>>([]);
   const [panels, setPanels] = useState<Array<Panel>>(initialPanels);
   const [snackBarProps, setSnackBarProps] = useState<SnackBarProps>(initialize);
+  const [loadingSendButton, setLoadingSendButton] = useState(false);
 
   const [showSnackBar, setShowSnackBar] = useState(false);
   const handleClose = (event?: SyntheticEvent | Event, reason?: string) =>
@@ -100,57 +103,82 @@ export function Endpoints() {
   const selectChange = (event: SelectChangeEvent) => {
     const { name: eventName, value } = event.target;
 
-    if (eventName === 'cluster') {
-      setCluster(value);
-      getAllTopics(value);
-    } else if (eventName === 'topic') {
+    if (eventName === 'topic') {
       setTopic(value);
       getAllSchemas(value);
     } else if (eventName === 'schema') {
       setSchema(value);
-      getAllVersions(topic, value);
+      getAllVersions(cluster!, topic, value);
     } else if (eventName === 'version') {
       setVersion(value);
-      getAvro(topic, schema, value);
+      getAvro(cluster!, topic, schema, value);
     }
   };
 
-  const getAllTopics = (cluster: string) => {
-    getTopicNames(cluster)
-      .then((topics) => setTopics(topics))
-      .catch((throwable) => callSnackBar(defaultError, throwable));
+  const selectChange2 = (event: string, value: any) => {
+    if (event === 'cluster') {
+      setCluster(value);
+      setInitialTopicAndSchemas(value);
+    } else if (event === 'topic') {
+      setTopic(value);
+      getAllSchemas(value);
+    } else if (event === 'schema') {
+      setSchema(value);
+      getAllVersions(cluster!, topic, value);
+    } else if (event === 'version') {
+      setVersion(value);
+      getAvro(cluster!, topic, schema, value);
+    }
+  };
+
+  const setInitialTopicAndSchemas = (cluster: ClusterDTO) => {
+    if (cluster == null) {
+      setTopicsAndSchemas(null);
+      setTopics([]);
+    } else {
+      getTopicAndSchemas(cluster)
+        .then((topicsAndSchemas) => {
+          setTopicsAndSchemas(topicsAndSchemas);
+          setTopics(Object.keys(topicsAndSchemas ?? {}));
+        })
+        .catch((throwable) => callSnackBar(defaultError, throwable));
+    }
   };
 
   const getAllSchemas = (topic: string) => {
-    getSchemaNames(topic)
-      .then((schemas) => {
-        if (schemas.length <= 0) {
-          callSnackBar({
-            message: 'Not found schemas!',
-            severity: 'warning'
-          });
-        }
-        setSchema('');
-        setSchemas(schemas);
-      })
-      .catch((throwable) => callSnackBar(defaultError, throwable));
+    const schemas = topicsAndSchemas[topic];
+    if (schemas.length <= 0) {
+      callSnackBar({
+        message: 'Not found schemas!',
+        severity: 'warning'
+      });
+    }
+    setSchema('');
+    setSchemas(schemas);
   };
 
-  const getAllVersions = (topic: string, schema: string) => {
-    getVersions(topic, schema)
+  const getAllVersions = (
+    cluster: ClusterDTO,
+    topic: string,
+    schema: string
+  ) => {
+    getVersions(cluster, topic, schema)
       .then((versions) => setVersions(versions))
       .catch((throwable) => callSnackBar(defaultError, throwable));
   };
 
-  const getAvro = (topic: string, schema: string, version: string) => {
-    getSchemaAvro(topic, schema, version)
-      .then((response) => {
-        const { avro, data } = response;
+  const getAvro = (
+    cluster: ClusterDTO,
+    topic: string,
+    schema: string,
+    version: string
+  ) => {
+    getSchemaAvro(cluster, topic, schema, version)
+      .then((schemaDTO) => {
+        const { schema, avro } = schemaDTO;
 
-        console.log(response);
-
-        setSchemaCode(avro ?? '');
-        setDataCode(data ?? '');
+        setSchemaCode(schema ?? '');
+        setDataCode(avro ?? '');
         setPanelExpand(panels, 'schema-panel', true, setPanels);
       })
       .catch((throwable) => callSnackBar(defaultError, throwable));
@@ -160,9 +188,10 @@ export function Endpoints() {
     setPanelExpand(panels, id, undefined, setPanels);
 
   const sendRequest = () => {
+    setLoadingSendButton(true);
     try {
       const data = {
-        cluster: cluster,
+        cluster: cluster?.id,
         topic: topic,
         schema: JSON.parse(schemaCode),
         payload: JSON.parse(dataCode),
@@ -170,8 +199,8 @@ export function Endpoints() {
       };
 
       sendEvent(data)
-        .then((response: any) => {
-          setResponseCode(JSON.stringify(response));
+        .then((response: ResponseDTO) => {
+          setResponseCode(JSON.stringify(response, undefined, 2));
           setSnackBarProps({
             message: 'Event produced successfully!',
             severity: 'success'
@@ -182,10 +211,12 @@ export function Endpoints() {
           setShowSnackBar(true);
           panelJsonFormat('response-panel');
           setPanelExpand(panels, 'response-panel', true, setPanels);
+          setLoadingSendButton(false);
         });
     } catch (e) {
       callSnackBar(defaultError, e);
       console.error(e);
+      setLoadingSendButton(false);
     }
   };
 
@@ -213,60 +244,46 @@ export function Endpoints() {
         <Grid container spacing={3}>
           {/* Select Properties */}
           <Grid item xs={12} md={12} lg={12}>
-            <Paper
-              sx={{
-                p: 2
-              }}
-            >
-              <div
-                style={{
-                  display: 'flex'
-                }}
-              >
+            <Paper sx={{ p: 2 }}>
+              <div style={{ display: 'flex' }}>
                 {/* Clusters */}
                 <FormControl sx={{ m: 1, flex: 1 }}>
-                  <InputLabel required id="cluster-label">
-                    Cluster
-                  </InputLabel>
-                  <Select
-                    name={'cluster'}
-                    labelId="cluster-label"
-                    id="cluster-select"
+                  <Autocomplete
                     value={cluster}
-                    label="cluster"
-                    onChange={selectChange}
-                  >
-                    {clusters.map(({ id, name }) => {
-                      return (
-                        <MenuItem key={id} value={id}>
-                          {name}
-                        </MenuItem>
-                      );
-                    })}
-                  </Select>
+                    onChange={(_: any, newValue: any) => {
+                      selectChange2('cluster', newValue);
+                    }}
+                    inputValue={inputCluster}
+                    onInputChange={(event, newInputValue) =>
+                      setInputCluster(newInputValue)
+                    }
+                    id="cluster-label"
+                    options={clusters}
+                    getOptionLabel={(option) => option.name}
+                    renderInput={(params) => (
+                      <TextField required {...params} label="Cluster" />
+                    )}
+                  />
                 </FormControl>
 
                 {/* Topics */}
-                <FormControl sx={{ m: 1, flex: 1 }} disabled={cluster === ''}>
-                  <InputLabel required id="topic-label">
-                    Topic
-                  </InputLabel>
-                  <Select
-                    name={'topic'}
-                    labelId="topic-label"
-                    id="topic-select"
+                <FormControl sx={{ m: 1, flex: 1 }}>
+                  <Autocomplete
+                    disabled={cluster?.id == undefined}
                     value={topic}
-                    label="topic"
-                    onChange={selectChange}
-                  >
-                    {topics.map(({ name }) => {
-                      return (
-                        <MenuItem key={name} value={name}>
-                          {name}
-                        </MenuItem>
-                      );
-                    })}
-                  </Select>
+                    onChange={(_: any, newValue: any) => {
+                      selectChange2('topic', newValue);
+                    }}
+                    inputValue={inputTopic}
+                    onInputChange={(event, newInputValue) =>
+                      setInputTopic(newInputValue)
+                    }
+                    id="topics-label"
+                    options={topics}
+                    renderInput={(params) => (
+                      <TextField required {...params} label="Topics" />
+                    )}
+                  />
                 </FormControl>
               </div>
 
@@ -285,10 +302,10 @@ export function Endpoints() {
                     label="schema"
                     onChange={selectChange}
                   >
-                    {schemas.map(({ name }) => {
+                    {schemas.map((schema) => {
                       return (
-                        <MenuItem key={name} value={name}>
-                          {name}
+                        <MenuItem key={schema} value={schema}>
+                          {schema}
                         </MenuItem>
                       );
                     })}
@@ -309,10 +326,10 @@ export function Endpoints() {
                     label="version"
                     onChange={selectChange}
                   >
-                    {versions.map(({ number }) => {
+                    {versions.map((version) => {
                       return (
-                        <MenuItem key={number} value={number}>
-                          {number}
+                        <MenuItem key={version} value={version}>
+                          {version}
                         </MenuItem>
                       );
                     })}
@@ -557,7 +574,14 @@ export function Endpoints() {
           {/* Actions Buttons */}
           <Grid item xs={12}>
             <Paper sx={{ p: 2, display: 'flex', flexDirection: 'column' }}>
-              <Button onClick={sendRequest}>Send Request</Button>
+              <LoadingButton
+                size="small"
+                onClick={sendRequest}
+                loading={loadingSendButton}
+                variant="outlined"
+              >
+                Send Request
+              </LoadingButton>
             </Paper>
           </Grid>
         </Grid>

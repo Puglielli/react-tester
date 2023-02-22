@@ -15,6 +15,7 @@ import Link from '@mui/material/Link';
 import MenuIcon from '@mui/icons-material/Menu';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import { listItems } from './MenuItems';
+import { Tooltip } from '@mui/material';
 
 const headerName = 'Tester';
 const drawerWidth = 240;
@@ -105,18 +106,20 @@ export default function MainTemplate({ children }: PropsWithChildren) {
               pr: '24px' // keep right padding when drawer closed
             }}
           >
-            <IconButton
-              edge="start"
-              color="inherit"
-              aria-label="open drawer"
-              onClick={toggleDrawer}
-              sx={{
-                marginRight: '36px',
-                ...(open && { display: 'none' })
-              }}
-            >
-              <MenuIcon />
-            </IconButton>
+            <Tooltip title="Menu" placement="right">
+              <IconButton
+                edge="start"
+                color="inherit"
+                aria-label="open drawer"
+                onClick={toggleDrawer}
+                sx={{
+                  marginRight: '36px',
+                  ...(open && { display: 'none' })
+                }}
+              >
+                <MenuIcon />
+              </IconButton>
+            </Tooltip>
             <Typography
               component="h1"
               variant="h6"
@@ -180,7 +183,7 @@ export default function MainTemplate({ children }: PropsWithChildren) {
           <Toolbar />
           <Container maxWidth={false} sx={{ mt: 4, mb: 4 }}>
             {children}
-            <Copyright sx={{ pt: 4 }} />
+            <Copyright sx={{ pt: 4 }} position={'absolute'} />
           </Container>
         </Box>
       </Box>

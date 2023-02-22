@@ -1,11 +1,11 @@
 export class SchemaDTO {
   name: string;
+  schema?: string;
   avro?: string;
-  data?: string;
 
-  constructor(name: string, avro?: string, data?: string) {
+  constructor(name: string, schema?: string, avro?: string) {
     this.name = name;
+    this.schema = schema;
     this.avro = avro;
-    this.data = data;
   }
 }
